@@ -167,7 +167,7 @@
       <div class="field">
         <label>Праздничные дни</label>
         <textarea id="inpHol" rows="2" placeholder="1 Новый год, 7 Рождество, 23"></textarea>
-        <div class="hint">Число и, по желанию, название — через запятую. Число делается выходным (чёрным), а название показывается на странице этого дня.</div>
+        <div class="hint">Число и, по желанию, название — через запятую. Число делается выходным (чёрным), название показывается на его странице. Текст в [квадратных скобках] — подпись по умолчанию для всех остальных дней.</div>
       </div>
 
       <div class="btnrow">
@@ -340,8 +340,14 @@
 
   // Праздники: "1 Новый год, 7, 23 День ..." → {set: дни, names: {день:название}}
   function parseHolidays(str){
+    str=str||'';
+    // текст в [квадратных скобках] — подпись по умолчанию (кроме дней со своим названием)
+    let deflt='';
+    const mb=str.match(/\[([^\]]*)\]/);
+    if(mb) deflt=mb[1].trim();
+    str=str.replace(/\[[^\]]*\]/g,' ');
     const set=new Set(), names={};
-    (str||'').split(/[,\n]/).forEach(tok=>{
+    str.split(/[,\n]/).forEach(tok=>{
       const t=tok.trim(); if(!t) return;
       const m=t.match(/^(\d{1,2})\s*(.*)$/);
       if(!m) return;
@@ -349,7 +355,7 @@
       set.add(d);
       const nm=m[2].trim(); if(nm) names[d]=nm;
     });
-    return {set, names};
+    return {set, names, deflt};
   }
   // Перенос по словам без разрыва слова (слово целиком уезжает на новую строку).
   function wrapText(o, text, maxW){
@@ -423,7 +429,7 @@
   }
 
   // ---- main render into a given ctx for a given day ----
-  function renderCalendar(ctx, y, m, day){
+  function renderCalendar(ctx, y, m, day, monthMode){
     const d0=dev(), DW=d0.w, DH=d0.h, k=DW/VW, VH=DH/k;
     const footY=VH-FOOT_MARGIN_BOTTOM;                 // footer baseline (virtual)
     const hol=parseHolidays(state.holidays);
@@ -473,12 +479,13 @@
       boldText(o, MONTHS_ABBR[m%12], FOOT_NEXT_X, footY+state.offF, F_FOOT*sF);
 
       // ---- holiday name for the current day, between the grid and the footer ----
-      if(day && hol.names[day]){
+      const holTitle = day ? (hol.names[day] || hol.deflt) : (monthMode ? hol.deflt : '');
+      if(holTitle){
         const hs=F_HOL*sF;
         o.font=fontSpec(hs); o.textAlign='center'; o.textBaseline='middle';
         o.fillStyle=C_BLACK;
         const maxW=VW-2*GRID_MARGIN;                 // ширина среднего блока
-        const lines=wrapText(o, hol.names[day], maxW);
+        const lines=wrapText(o, holTitle, maxW);
         const lineH=hs*1.18;
         const rowsUsed=Math.ceil((firstCol(y,m)+daysInMonth(y,m))/7);
         const gridBottom=ROW0_Y+ROW_PITCH*(rowsUsed-1)+PILL_H/2+state.offG;
@@ -751,7 +758,7 @@
   async function exportMonthPng(){
     const {year,month}=state;
     setMsg('Генерация PNG…','ok'); await tick();
-    renderCalendar(wctx, year, month, null);   // day=null → нет пилюли/активного дня/названия праздника
+    renderCalendar(wctx, year, month, null, true);   // day=null → нет пилюли/активного дня; показываем [подпись по умолчанию]
     const blob=await new Promise(r=>work.toBlob(r,'image/png'));
     download(blob, `calendar_${state.device}_${year}_${pad2(month)}_month.png`);
     render();                                   // вернуть превью к выбранному дню

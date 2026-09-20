@@ -177,6 +177,9 @@
         <button class="btn btn-ghost" id="btnPng">ZIP с PNG</button>
         <button class="btn btn-ghost" id="btnBmp">ZIP с BMP</button>
       </div>
+      <div class="btnrow">
+        <button class="btn btn-ghost" id="btnMonth" style="width:100%">Экспорт календаря на месяц</button>
+      </div>
       <div class="msg" id="msg"></div>
       <div class="hint">XTC — многостраничный файл (страница на каждый день, подсвечен текущий день). ZIP — по одному изображению на день.</div>
     </div>
@@ -744,6 +747,17 @@
     setMsg(`Готово: ZIP с ${kind.toUpperCase()} сохранён`,'ok');
   }
 
+  // Один PNG на весь месяц, без подсветки текущего дня.
+  async function exportMonthPng(){
+    const {year,month}=state;
+    setMsg('Генерация PNG…','ok'); await tick();
+    renderCalendar(wctx, year, month, null);   // day=null → нет пилюли/активного дня/названия праздника
+    const blob=await new Promise(r=>work.toBlob(r,'image/png'));
+    download(blob, `calendar_${state.device}_${year}_${pad2(month)}_month.png`);
+    render();                                   // вернуть превью к выбранному дню
+    setMsg('Готово: PNG на месяц сохранён','ok');
+  }
+
   // ============ UI ============
   function setMsg(t,k){ const m=$('msg'); m.textContent=t; m.className='msg'+(t?' show '+k:''); }
   function tick(){ return new Promise(r=>requestAnimationFrame(()=>setTimeout(r,0))); }
@@ -852,6 +866,7 @@
   $('btnXtc').addEventListener('click',()=>exportXTC().catch(e=>{setMsg('Ошибка: '+e.message,'err');console.error(e);}));
   $('btnPng').addEventListener('click',()=>exportZip('png').catch(e=>{setMsg('Ошибка: '+e.message,'err');console.error(e);}));
   $('btnBmp').addEventListener('click',()=>exportZip('bmp').catch(e=>{setMsg('Ошибка: '+e.message,'err');console.error(e);}));
+  $('btnMonth').addEventListener('click',()=>exportMonthPng().catch(e=>{setMsg('Ошибка: '+e.message,'err');console.error(e);}));
 
   fillSelectors();
   applyDevicePreview();
